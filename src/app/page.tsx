@@ -35,13 +35,13 @@ const InputTile = (
         {...props}
         type='text'
         maxLength={1}
-        className={`h-14 w-14 rounded border border-gray-600 bg-gray-700 p-2 text-center text-2xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
+        className={`h-14 w-14 rounded border border-gray-600 bg-gray-700/70 p-2 text-center text-2xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
         readOnly
     />
 )
 
 const PlaceholderTile = () => (
-    <div className='h-14 w-14 rounded border border-gray-600 bg-gray-700 sm:h-16 sm:w-16' />
+    <div className='h-14 w-14 rounded border border-gray-600 bg-gray-700/70 sm:h-16 sm:w-16' />
 )
 
 // Simple Confetti Particle Component
@@ -122,7 +122,7 @@ const Key = ({
     return (
         <button
             onClick={onClick}
-            className={`m-0.5 flex h-12 items-center justify-center rounded bg-gray-500 p-2 text-lg font-medium text-white hover:bg-gray-400 active:bg-gray-600 sm:h-14 sm:text-xl ${className}`}
+            className={`m-0.5 flex h-12 items-center justify-center rounded bg-zinc-600 p-2 text-lg font-medium text-white hover:bg-gray-400 active:bg-gray-600 sm:h-14 sm:text-xl ${className}`}
         >
             {displayValue}
         </button>

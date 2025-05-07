@@ -22,7 +22,7 @@ const HintLetterTile = ({
     className?: string
 }) => (
     <div
-        className={`flex h-14 w-14 items-center justify-center rounded border border-gray-500 bg-gray-600 text-3xl font-bold text-white sm:h-16 sm:w-16 ${className}`}
+        className={`flex h-14 w-14 items-center justify-center rounded border border-zinc-500 bg-zinc-600 text-3xl font-bold text-white sm:h-16 sm:w-16 ${className}`}
     >
         {letter}
     </div>
@@ -35,13 +35,13 @@ const InputTile = (
         {...props}
         type='text'
         maxLength={1}
-        className={`h-14 w-14 rounded border border-gray-600 bg-gray-700/70 p-2 text-center text-3xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
+        className={`h-14 w-14 rounded border border-zinc-600 bg-zinc-700/70 p-2 text-center text-3xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
         readOnly
     />
 )
 
 const PlaceholderTile = () => (
-    <div className='h-14 w-14 rounded border border-gray-600 bg-gray-700/70 sm:h-16 sm:w-16' />
+    <div className='h-14 w-14 rounded border border-zinc-600 bg-zinc-700/70 sm:h-16 sm:w-16' />
 )
 
 // Simple Confetti Particle Component
@@ -122,7 +122,7 @@ const Key = ({
     return (
         <button
             onClick={onClick}
-            className={`m-0.5 flex h-12 items-center justify-center rounded bg-zinc-600 p-2 text-lg font-medium text-white hover:bg-gray-400 active:bg-gray-600 sm:h-14 sm:text-xl ${className}`}
+            className={`m-0.5 flex h-12 items-center justify-center rounded bg-zinc-600 p-2 text-lg font-medium text-white hover:bg-zinc-400 active:bg-zinc-600 sm:h-14 sm:text-xl ${className}`}
         >
             {displayValue}
         </button>
@@ -372,7 +372,7 @@ export default function WordAssociationGame() {
                 <h1 className='mb-4 text-4xl font-bold'>
                     Word Association Unlimited
                 </h1>
-                <p className='text-sm text-gray-400'>
+                <p className='text-sm text-zinc-400'>
                     Shout out to my discord friends
                 </p>
             </div>

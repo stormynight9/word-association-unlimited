@@ -178,6 +178,9 @@ export default function WordAssociationGame() {
     const [feedback, setFeedback] = useState('')
     const [isErrorFlash, setIsErrorFlash] = useState(false)
     const [showConfetti, setShowConfetti] = useState(false)
+    const [revealedByHintIndices, setRevealedByHintIndices] = useState<
+        Set<number>
+    >(new Set())
 
     const handleInputChange = useCallback(
         (index: number, value: string) => {
@@ -225,6 +228,7 @@ export default function WordAssociationGame() {
             const newCurrentWordIndex = currentWordIndex + 1
             setCurrentWordIndex(newCurrentWordIndex)
             setFeedback('')
+            setRevealedByHintIndices(new Set())
             if (newCurrentWordIndex < currentWordSequence.length - 1) {
                 const nextWordToSetUp =
                     currentWordSequence[newCurrentWordIndex + 1]
@@ -261,6 +265,7 @@ export default function WordAssociationGame() {
         setFeedback('')
         setIsErrorFlash(false)
         setShowConfetti(false)
+        setRevealedByHintIndices(new Set())
         if (newSequence.length > 1 && newSequence[1]) {
             setUserInput(
                 Array(
@@ -277,15 +282,77 @@ export default function WordAssociationGame() {
         initializeGame()
     }, [initializeGame])
 
+    const handleRequestHint = useCallback(() => {
+        const wordToGuessString = currentWordSequence[currentWordIndex + 1]
+        if (!wordToGuessString || userInput.every((char) => char !== '')) return
+
+        let hinted = false
+        const newUserInput = [...userInput]
+        for (let i = 0; i < userInput.length; i++) {
+            if (userInput[i] === '' && !revealedByHintIndices.has(i)) {
+                const correctLetter = wordToGuessString[i + 1]?.toUpperCase()
+                if (correctLetter) {
+                    newUserInput[i] = correctLetter
+                    setRevealedByHintIndices((prev) => new Set(prev).add(i))
+                    hinted = true
+                    break
+                }
+            }
+        }
+
+        if (hinted) {
+            setUserInput(newUserInput)
+            let nextFocusIndex = -1
+            for (let i = 0; i < newUserInput.length; i++) {
+                if (newUserInput[i] === '' && !revealedByHintIndices.has(i)) {
+                    nextFocusIndex = i
+                    break
+                }
+            }
+            if (nextFocusIndex !== -1) {
+                setTimeout(
+                    () =>
+                        document
+                            .getElementById(`input-${nextFocusIndex}`)
+                            ?.focus(),
+                    0
+                )
+            } else {
+                const lastInputIndex = userInput.length - 1
+                if (lastInputIndex >= 0) {
+                    setTimeout(
+                        () =>
+                            document
+                                .getElementById(`input-${lastInputIndex}`)
+                                ?.focus(),
+                        0
+                    )
+                }
+            }
+        }
+    }, [
+        currentWordSequence,
+        currentWordIndex,
+        userInput,
+        revealedByHintIndices,
+    ])
+
     // Handlers for Virtual Keyboard
     const handleVirtualKeyPress = useCallback(
         (key: string) => {
-            const firstEmptyIndex = userInput.findIndex((char) => char === '')
-            if (firstEmptyIndex !== -1) {
-                handleInputChange(firstEmptyIndex, key)
+            const firstEmptyIndex = userInput.findIndex(
+                (char) =>
+                    char === '' &&
+                    !revealedByHintIndices.has(userInput.indexOf(char))
+            )
+            const firstTrulyEmptyIndex = userInput.findIndex(
+                (char) => char === ''
+            )
+            if (firstTrulyEmptyIndex !== -1) {
+                handleInputChange(firstTrulyEmptyIndex, key)
             }
         },
-        [userInput, handleInputChange]
+        [userInput, handleInputChange, revealedByHintIndices]
     )
 
     const handleVirtualBackspacePress = useCallback(() => {
@@ -293,7 +360,7 @@ export default function WordAssociationGame() {
             const newUserInput = [...prevUserInput]
             let lastFilledIndex = -1
             for (let i = newUserInput.length - 1; i >= 0; i--) {
-                if (newUserInput[i] !== '') {
+                if (newUserInput[i] !== '' && !revealedByHintIndices.has(i)) {
                     lastFilledIndex = i
                     break
                 }
@@ -312,7 +379,7 @@ export default function WordAssociationGame() {
             }
             return prevUserInput // No change if no character to delete
         })
-    }, []) // No direct dependency on userInput here, as it uses functional update
+    }, [revealedByHintIndices])
 
     const handleVirtualEnterPress = useCallback(() => {
         handleSubmit()
@@ -340,13 +407,24 @@ export default function WordAssociationGame() {
 
             if (key.length === 1 && key >= 'A' && key <= 'Z') {
                 event.preventDefault()
-                handleVirtualKeyPress(key) // Reuse virtual key press logic
+                // Prevent typing if all inputs are full or if the next available slot is a hint that shouldn't be overwritten
+                const firstEmptyIdx = userInput.findIndex((char) => char === '')
+                if (
+                    firstEmptyIdx !== -1 &&
+                    !revealedByHintIndices.has(firstEmptyIdx)
+                ) {
+                    handleVirtualKeyPress(key)
+                } else if (firstEmptyIdx === -1 && userInput.includes('')) {
+                    // This case means there are empty slots but they might be hinted, let's re-check logic for handleVirtualKeyPress
+                    // For now, let physical keyboard call the same virtual key press.
+                    handleVirtualKeyPress(key)
+                }
             } else if (event.key === 'Backspace') {
                 event.preventDefault()
-                handleVirtualBackspacePress() // Reuse virtual backspace logic
+                handleVirtualBackspacePress()
             } else if (event.key === 'Enter') {
                 event.preventDefault()
-                handleVirtualEnterPress() // Reuse virtual enter logic
+                handleVirtualEnterPress()
             }
         }
 
@@ -359,11 +437,28 @@ export default function WordAssociationGame() {
         handleVirtualKeyPress,
         handleVirtualBackspacePress,
         handleVirtualEnterPress,
+        userInput,
+        revealedByHintIndices,
     ])
 
     if (currentWordSequence.length === 0) {
         return <div>Loading game...</div>
     }
+
+    // Determine if hint button should be disabled
+    let hintButtonDisabled = true
+    const activeWordToGuess = currentWordSequence[currentWordIndex + 1]
+    if (activeWordToGuess) {
+        if (
+            userInput.some(
+                (char, index) =>
+                    char === '' && !revealedByHintIndices.has(index)
+            )
+        ) {
+            hintButtonDisabled = false
+        }
+    }
+    if (!activeWordToGuess) hintButtonDisabled = true // Also disable if no active word
 
     return (
         <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-900 p-4 text-white'>
@@ -457,6 +552,14 @@ export default function WordAssociationGame() {
                 ))}
             </div>
 
+            <button
+                onClick={handleRequestHint}
+                disabled={hintButtonDisabled}
+                className='z-10 mb-4 rounded bg-zinc-500 px-6 py-2 text-base font-medium text-white hover:bg-zinc-400 focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500'
+            >
+                Hint
+            </button>
+
             {feedback && (
                 <p
                     className={`z-10 mb-4 text-xl ${feedback.includes('completed') ? 'text-green-600' : 'text-red-400'}`}
@@ -474,8 +577,8 @@ export default function WordAssociationGame() {
             {currentWordIndex >= currentWordSequence.length - 1 &&
                 currentWordSequence.length > 0 && (
                     <button
-                        onClick={initializeGame} // Re-initialize for a new game
-                        className='z-10 mt-8 rounded bg-purple-500 px-8 py-3 text-lg font-semibold text-white hover:bg-purple-600 focus:ring-2 focus:ring-purple-300 focus:outline-none'
+                        onClick={initializeGame}
+                        className='z-10 mt-8 rounded bg-green-500 px-8 py-3 text-lg font-semibold text-white hover:bg-green-400 focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:outline-none'
                     >
                         Play Again
                     </button>

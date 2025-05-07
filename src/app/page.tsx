@@ -370,7 +370,7 @@ export default function WordAssociationGame() {
             {showConfetti && <ConfettiEffect />}
             <div className='mb-4 text-center'>
                 <h1 className='mb-4 text-4xl font-bold'>
-                    Word Association Unlimted
+                    Word Association Unlimited
                 </h1>
                 <p className='text-sm text-gray-400'>
                     Shout out to my discord friends

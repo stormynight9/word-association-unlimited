@@ -9,7 +9,7 @@ function getRandomItem<T>(array: T[]): T {
 }
 
 const RevealedLetterTile = ({ letter }: { letter: string }) => (
-    <div className='flex h-14 w-14 items-center justify-center rounded bg-green-500 text-2xl font-bold text-white sm:h-16 sm:w-16'>
+    <div className='flex h-14 w-14 items-center justify-center rounded bg-green-600 text-3xl font-bold text-white sm:h-16 sm:w-16'>
         {letter}
     </div>
 )
@@ -49,7 +49,7 @@ const ConfettiParticle = () => {
     const colors = [
         'bg-yellow-400',
         'bg-pink-400',
-        'bg-green-400',
+        'bg-green-500',
         'bg-blue-400',
         'bg-purple-400',
         'bg-red-400',
@@ -366,7 +366,7 @@ export default function WordAssociationGame() {
     }
 
     return (
-        <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gray-800 p-4 text-white'>
+        <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-900 p-4 text-white'>
             {showConfetti && <ConfettiEffect />}
             <div className='mb-4 text-center'>
                 <h1 className='mb-4 text-4xl font-bold'>
@@ -459,7 +459,7 @@ export default function WordAssociationGame() {
 
             {feedback && (
                 <p
-                    className={`z-10 mb-4 text-xl ${feedback.includes('completed') ? 'text-green-400' : 'text-red-400'}`}
+                    className={`z-10 mb-4 text-xl ${feedback.includes('completed') ? 'text-green-600' : 'text-red-400'}`}
                 >
                     {feedback}
                 </p>

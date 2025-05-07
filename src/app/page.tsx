@@ -22,7 +22,7 @@ const HintLetterTile = ({
     className?: string
 }) => (
     <div
-        className={`flex h-14 w-14 items-center justify-center rounded border border-gray-500 bg-gray-600 text-2xl font-bold text-white sm:h-16 sm:w-16 ${className}`}
+        className={`flex h-14 w-14 items-center justify-center rounded border border-gray-500 bg-gray-600 text-3xl font-bold text-white sm:h-16 sm:w-16 ${className}`}
     >
         {letter}
     </div>
@@ -35,7 +35,7 @@ const InputTile = (
         {...props}
         type='text'
         maxLength={1}
-        className={`h-14 w-14 rounded border border-gray-600 bg-gray-700/70 p-2 text-center text-2xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
+        className={`h-14 w-14 rounded border border-gray-600 bg-gray-700/70 p-2 text-center text-3xl font-bold text-white focus:border-blue-500 focus:outline-none sm:h-16 sm:w-16 ${props.className}`}
         readOnly
     />
 )

@@ -249,14 +249,20 @@ export default function WordAssociationGame() {
         } else {
             setIsErrorFlash(true)
             setTimeout(() => setIsErrorFlash(false), 500)
-            setUserInput(
-                Array(wordToGuess.length > 0 ? wordToGuess.length - 1 : 0).fill(
-                    ''
+            setUserInput((prevInput) =>
+                prevInput.map(
+                    (char, index) =>
+                        revealedByHintIndices.has(index) ? char : '' // Keep hinted letters, clear others
                 )
             )
             setTimeout(() => document.getElementById('input-0')?.focus(), 0)
         }
-    }, [currentWordIndex, currentWordSequence, userInput])
+    }, [
+        currentWordIndex,
+        currentWordSequence,
+        userInput,
+        revealedByHintIndices,
+    ])
 
     const initializeGame = useCallback(() => {
         const newSequence = getRandomItem(WORDLIST)
@@ -284,24 +290,31 @@ export default function WordAssociationGame() {
 
     const handleRequestHint = useCallback(() => {
         const wordToGuessString = currentWordSequence[currentWordIndex + 1]
-        if (!wordToGuessString || userInput.every((char) => char !== '')) return
+        if (!wordToGuessString) return
 
-        let hinted = false
+        let hintGiven = false
+        let hintedInputIndex = -1 // To store the index of the input that got the hint
         const newUserInput = [...userInput]
+
+        // Always find the first available empty slot from left-to-right that hasn't been hinted yet.
         for (let i = 0; i < userInput.length; i++) {
             if (userInput[i] === '' && !revealedByHintIndices.has(i)) {
-                const correctLetter = wordToGuessString[i + 1]?.toUpperCase()
+                const correctLetter = wordToGuessString[i + 1]?.toUpperCase() // +1 because wordToGuessString includes the leading visible hint
                 if (correctLetter) {
                     newUserInput[i] = correctLetter
                     setRevealedByHintIndices((prev) => new Set(prev).add(i))
-                    hinted = true
-                    break
+                    hintGiven = true
+                    hintedInputIndex = i
+                    break // Reveal only one letter per click
                 }
             }
         }
 
-        if (hinted) {
+        if (hintGiven) {
             setUserInput(newUserInput)
+            // Focus logic after a hint is successfully given:
+            // Try to focus the next available empty slot that is not hinted.
+            // If none, focus the slot that was just hinted (if it's the last one to fill).
             let nextFocusIndex = -1
             for (let i = 0; i < newUserInput.length; i++) {
                 if (newUserInput[i] === '' && !revealedByHintIndices.has(i)) {
@@ -309,6 +322,7 @@ export default function WordAssociationGame() {
                     break
                 }
             }
+
             if (nextFocusIndex !== -1) {
                 setTimeout(
                     () =>
@@ -317,17 +331,15 @@ export default function WordAssociationGame() {
                             ?.focus(),
                     0
                 )
-            } else {
-                const lastInputIndex = userInput.length - 1
-                if (lastInputIndex >= 0) {
-                    setTimeout(
-                        () =>
-                            document
-                                .getElementById(`input-${lastInputIndex}`)
-                                ?.focus(),
-                        0
-                    )
-                }
+            } else if (hintedInputIndex !== -1) {
+                // If no other empty un-hinted slot, focus the one just hinted (especially if it completes the word visually)
+                setTimeout(
+                    () =>
+                        document
+                            .getElementById(`input-${hintedInputIndex}`)
+                            ?.focus(),
+                    0
+                )
             }
         }
     }, [

@@ -182,15 +182,14 @@ const VirtualKeyboard = ({
 
 export default function WordAssociationGame() {
     const [currentWordSequence, setCurrentWordSequence] = useState<string[]>([])
-    const [currentWordIndex, setCurrentWordIndex] = useState(0) // Index of the last fully known word
-    const [userInput, setUserInput] = useState<string[]>([]) // For letters AFTER the hint
+    const [currentWordIndex, setCurrentWordIndex] = useState(0)
+    const [userInput, setUserInput] = useState<string[]>([])
     const [feedback, setFeedback] = useState('')
-    const [isErrorFlash, setIsErrorFlash] = useState(false)
+    const [isShaking, setIsShaking] = useState(false)
     const [showConfetti, setShowConfetti] = useState(false)
 
     const handleInputChange = useCallback(
         (index: number, value: string) => {
-            // Check if the index is valid for the current userInput array and value is a single letter
             if (
                 /^[a-zA-Z]$/.test(value) &&
                 index >= 0 &&
@@ -200,7 +199,6 @@ export default function WordAssociationGame() {
                 newUserInput[index] = value.toUpperCase()
                 setUserInput(newUserInput)
 
-                // If a letter was placed and it's not the last input field
                 if (index < userInput.length - 1) {
                     setTimeout(
                         () =>
@@ -210,7 +208,6 @@ export default function WordAssociationGame() {
                         0
                     )
                 } else if (index === userInput.length - 1) {
-                    // If it was the last input, focus it (important for subsequent Enter press)
                     setTimeout(
                         () =>
                             document.getElementById(`input-${index}`)?.focus(),
@@ -252,8 +249,8 @@ export default function WordAssociationGame() {
                 setTimeout(() => setShowConfetti(false), 4000)
             }
         } else {
-            setIsErrorFlash(true)
-            setTimeout(() => setIsErrorFlash(false), 500)
+            setIsShaking(true)
+            setTimeout(() => setIsShaking(false), 600)
             setUserInput(
                 Array(wordToGuess.length > 0 ? wordToGuess.length - 1 : 0).fill(
                     ''
@@ -264,11 +261,11 @@ export default function WordAssociationGame() {
     }, [currentWordIndex, currentWordSequence, userInput])
 
     const initializeGame = useCallback(() => {
-        const newSequence = getDailySequence() // Use daily sequence instead of random
+        const newSequence = getDailySequence()
         setCurrentWordSequence(newSequence)
         setCurrentWordIndex(0)
         setFeedback('')
-        setIsErrorFlash(false)
+        setIsShaking(false)
         setShowConfetti(false)
         if (newSequence.length > 1 && newSequence[1]) {
             setUserInput(
@@ -286,7 +283,6 @@ export default function WordAssociationGame() {
         initializeGame()
     }, [initializeGame])
 
-    // Handlers for Virtual Keyboard
     const handleVirtualKeyPress = useCallback(
         (key: string) => {
             const firstTrulyEmptyIndex = userInput.findIndex(
@@ -321,7 +317,7 @@ export default function WordAssociationGame() {
                 )
                 return newUserInput
             }
-            return prevUserInput // No change if no character to delete
+            return prevUserInput
         })
     }, [])
 
@@ -329,10 +325,9 @@ export default function WordAssociationGame() {
         handleSubmit()
     }, [handleSubmit])
 
-    // Global keydown listener for physical keyboard
     useEffect(() => {
         const handleGlobalKeyDown = (event: KeyboardEvent) => {
-            if (showConfetti) return // Don't process game input if confetti is showing
+            if (showConfetti) return
 
             const key = event.key.toUpperCase()
 
@@ -366,6 +361,38 @@ export default function WordAssociationGame() {
     return (
         <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-900 p-4 text-white'>
             {showConfetti && <ConfettiEffect />}
+            <style jsx global>{`
+                @keyframes shake {
+                    0%,
+                    100% {
+                        transform: translateX(0);
+                    }
+                    12.5% {
+                        transform: translateX(-3px);
+                    }
+                    25% {
+                        transform: translateX(3px);
+                    }
+                    37.5% {
+                        transform: translateX(-3px);
+                    }
+                    50% {
+                        transform: translateX(3px);
+                    }
+                    62.5% {
+                        transform: translateX(-3px);
+                    }
+                    75% {
+                        transform: translateX(3px);
+                    }
+                    87.5% {
+                        transform: translateX(-3px);
+                    }
+                }
+                .shake {
+                    animation: shake 0.6s ease-in-out;
+                }
+            `}</style>
             <div className='mb-4 text-center'>
                 <h1 className='mb-4 text-4xl font-bold'>
                     Word Association Unlimited
@@ -375,18 +402,21 @@ export default function WordAssociationGame() {
                 </p>
             </div>
 
-            <div className='z-10 mb-4 space-y-2'>
+            <div className='z-10 mb-2 space-y-2'>
                 {currentWordSequence.map((word, rowIndex) => (
                     <div
                         key={rowIndex}
-                        className='flex items-center space-x-1.5'
+                        className={`flex items-center space-x-1.5 ${
+                            isShaking && rowIndex === currentWordIndex + 1
+                                ? 'shake'
+                                : ''
+                        }`}
                     >
                         {word
                             .toUpperCase()
                             .split('')
                             .map((letter, letterIndex) => {
                                 if (rowIndex <= currentWordIndex) {
-                                    // Fully revealed word
                                     return (
                                         <RevealedLetterTile
                                             key={letterIndex}
@@ -394,22 +424,14 @@ export default function WordAssociationGame() {
                                         />
                                     )
                                 } else if (rowIndex === currentWordIndex + 1) {
-                                    // Active word for guessing
-                                    const showError = isErrorFlash
                                     if (letterIndex === 0) {
                                         return (
                                             <FirstLetterTile
                                                 key={letterIndex}
                                                 letter={letter}
-                                                className={
-                                                    showError
-                                                        ? 'border-2 !border-red-500/60'
-                                                        : ''
-                                                }
                                             />
                                         )
                                     } else {
-                                        // userInput is for letters *after* the hint
                                         return (
                                             <InputTile
                                                 key={`input-${letterIndex - 1}`}
@@ -419,22 +441,13 @@ export default function WordAssociationGame() {
                                                         letterIndex - 1
                                                     ] || ''
                                                 }
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        letterIndex - 1,
-                                                        e.target.value
-                                                    )
-                                                }
-                                                className={
-                                                    showError
-                                                        ? 'border-2 !border-red-500/60'
-                                                        : ''
-                                                }
+                                                onChange={() => {
+                                                    /* onChange is now handled globally */
+                                                }}
                                             />
                                         )
                                     }
                                 } else {
-                                    // Future words (show hint and placeholders)
                                     if (letterIndex === 0) {
                                         return (
                                             <FirstLetterTile

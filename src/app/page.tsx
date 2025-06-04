@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import StatsPopup from '../components/stats-popup'
 import { WORDLIST } from '../constants'
 
 // Get the same word sequence for the same day
@@ -29,11 +30,31 @@ function getTodayDateString(): string {
     )
 }
 
+// Get a random word sequence for practice mode (excluding today's)
+function getRandomPracticeSequence(): string[] {
+    const today = new Date()
+    const startOfYear = new Date(today.getFullYear(), 0, 1)
+    const dayOfYear =
+        Math.floor(
+            (today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)
+        ) + 1
+    const todayIndex = (dayOfYear - 1) % WORDLIST.length
+
+    // Get a random index that's not today's index
+    let randomIndex
+    do {
+        randomIndex = Math.floor(Math.random() * WORDLIST.length)
+    } while (randomIndex === todayIndex)
+
+    return WORDLIST[randomIndex]
+}
+
 // Save game state to localStorage
 function saveGameState(state: {
     currentWordSequence: string[]
     currentWordIndex: number
     userInput: string[]
+    attemptsPerWord: number[]
     date: string
 }) {
     try {
@@ -48,12 +69,20 @@ function loadGameState(): {
     currentWordSequence: string[]
     currentWordIndex: number
     userInput: string[]
+    attemptsPerWord: number[]
     date: string
 } | null {
     try {
         const saved = localStorage.getItem('wordAssociationGame')
         if (saved) {
-            return JSON.parse(saved)
+            const parsed = JSON.parse(saved)
+            // Ensure attemptsPerWord exists for backward compatibility
+            if (!parsed.attemptsPerWord) {
+                parsed.attemptsPerWord = Array(
+                    parsed.currentWordSequence.length - 1
+                ).fill(0)
+            }
+            return parsed
         }
     } catch (error) {
         console.warn('Failed to load game state from localStorage:', error)
@@ -228,9 +257,12 @@ export default function WordAssociationGame() {
     const [currentWordSequence, setCurrentWordSequence] = useState<string[]>([])
     const [currentWordIndex, setCurrentWordIndex] = useState(0)
     const [userInput, setUserInput] = useState<string[]>([])
-    const [feedback, setFeedback] = useState('')
+    const [attemptsPerWord, setAttemptsPerWord] = useState<number[]>([])
     const [isShaking, setIsShaking] = useState(false)
     const [showConfetti, setShowConfetti] = useState(false)
+    const [showStatsPopup, setShowStatsPopup] = useState(false)
+    const [isPracticeMode, setIsPracticeMode] = useState(false)
+    const [dailyCompleted, setDailyCompleted] = useState(false)
 
     const handleInputChange = useCallback(
         (index: number, value: string) => {
@@ -271,10 +303,15 @@ export default function WordAssociationGame() {
         const firstLetter = wordToGuess[0]?.toUpperCase() || ''
         const guessedWord = (firstLetter + userInput.join('')).toUpperCase()
 
+        // Increment attempts for current word (for both correct and incorrect guesses)
+        const newAttemptsPerWord = [...attemptsPerWord]
+        newAttemptsPerWord[currentWordIndex] =
+            (newAttemptsPerWord[currentWordIndex] || 0) + 1
+        setAttemptsPerWord(newAttemptsPerWord)
+
         if (guessedWord === wordToGuess.toUpperCase()) {
             const newCurrentWordIndex = currentWordIndex + 1
             setCurrentWordIndex(newCurrentWordIndex)
-            setFeedback('')
             if (newCurrentWordIndex < currentWordSequence.length - 1) {
                 const nextWordToSetUp =
                     currentWordSequence[newCurrentWordIndex + 1]
@@ -284,27 +321,40 @@ export default function WordAssociationGame() {
                 setUserInput(newUserInput)
 
                 // Save progress to localStorage
-                saveGameState({
-                    currentWordSequence,
-                    currentWordIndex: newCurrentWordIndex,
-                    userInput: newUserInput,
-                    date: getTodayDateString(),
-                })
+                if (!isPracticeMode) {
+                    saveGameState({
+                        currentWordSequence,
+                        currentWordIndex: newCurrentWordIndex,
+                        userInput: newUserInput,
+                        attemptsPerWord: newAttemptsPerWord,
+                        date: getTodayDateString(),
+                    })
+                }
 
                 setTimeout(() => document.getElementById('input-0')?.focus(), 0)
             } else {
                 setUserInput([])
-                setFeedback("You've completed all words! Great job Jared! 🎉")
-                setShowConfetti(true)
-                setTimeout(() => setShowConfetti(false), 4000)
+                if (isPracticeMode) {
+                    setShowConfetti(true)
+                    setTimeout(() => {
+                        setShowConfetti(false)
+                    }, 3000)
+                } else {
+                    setDailyCompleted(true)
+                    setShowConfetti(true)
+                    setTimeout(() => {
+                        setShowStatsPopup(true)
+                    }, 1000)
 
-                // Save completed state
-                saveGameState({
-                    currentWordSequence,
-                    currentWordIndex: newCurrentWordIndex,
-                    userInput: [],
-                    date: getTodayDateString(),
-                })
+                    // Save completed state (only for daily mode)
+                    saveGameState({
+                        currentWordSequence,
+                        currentWordIndex: newCurrentWordIndex,
+                        userInput: [],
+                        attemptsPerWord: newAttemptsPerWord,
+                        date: getTodayDateString(),
+                    })
+                }
             }
         } else {
             setIsShaking(true)
@@ -316,9 +366,40 @@ export default function WordAssociationGame() {
             )
             setTimeout(() => document.getElementById('input-0')?.focus(), 0)
         }
-    }, [currentWordIndex, currentWordSequence, userInput])
+    }, [
+        currentWordIndex,
+        currentWordSequence,
+        userInput,
+        attemptsPerWord,
+        isPracticeMode,
+    ])
 
     const initializeGame = useCallback(() => {
+        if (isPracticeMode) {
+            // Start a new practice game with random sequence
+            const practiceSequence = getRandomPracticeSequence()
+            setCurrentWordSequence(practiceSequence)
+            setCurrentWordIndex(0)
+            setAttemptsPerWord(Array(practiceSequence.length - 1).fill(0))
+            setIsShaking(false)
+            setShowConfetti(false)
+            setShowStatsPopup(false)
+
+            if (practiceSequence.length > 1 && practiceSequence[1]) {
+                const initialUserInput = Array(
+                    practiceSequence[1].length > 0
+                        ? practiceSequence[1].length - 1
+                        : 0
+                ).fill('')
+                setUserInput(initialUserInput)
+            } else {
+                setUserInput([])
+            }
+
+            setTimeout(() => document.getElementById('input-0')?.focus(), 0)
+            return
+        }
+
         const todayDate = getTodayDateString()
         const savedState = loadGameState()
 
@@ -328,20 +409,20 @@ export default function WordAssociationGame() {
             setCurrentWordSequence(savedState.currentWordSequence)
             setCurrentWordIndex(savedState.currentWordIndex)
             setUserInput(savedState.userInput)
+            setAttemptsPerWord(savedState.attemptsPerWord)
             const isCompleted =
                 savedState.currentWordIndex >=
                 savedState.currentWordSequence.length - 1
-            setFeedback(
-                isCompleted
-                    ? "You've completed all words! Great job Jared! 🎉"
-                    : ''
-            )
+
+            setDailyCompleted(isCompleted)
             setIsShaking(false)
 
             // Show confetti if game was already completed
             if (isCompleted) {
                 setShowConfetti(true)
-                setTimeout(() => setShowConfetti(false), 4000)
+                setTimeout(() => {
+                    setShowStatsPopup(true)
+                }, 1000)
             } else {
                 setShowConfetti(false)
             }
@@ -350,7 +431,8 @@ export default function WordAssociationGame() {
             const newSequence = getDailySequence()
             setCurrentWordSequence(newSequence)
             setCurrentWordIndex(0)
-            setFeedback('')
+            setAttemptsPerWord(Array(newSequence.length - 1).fill(0))
+            setDailyCompleted(false)
             setIsShaking(false)
             setShowConfetti(false)
             if (newSequence.length > 1 && newSequence[1]) {
@@ -364,6 +446,7 @@ export default function WordAssociationGame() {
                     currentWordSequence: newSequence,
                     currentWordIndex: 0,
                     userInput: initialUserInput,
+                    attemptsPerWord: Array(newSequence.length - 1).fill(0),
                     date: todayDate,
                 })
             } else {
@@ -371,11 +454,36 @@ export default function WordAssociationGame() {
             }
         }
         setTimeout(() => document.getElementById('input-0')?.focus(), 0)
-    }, [])
+    }, [isPracticeMode])
 
     useEffect(() => {
         initializeGame()
     }, [initializeGame])
+
+    const handlePracticeMode = useCallback(() => {
+        setShowStatsPopup(false)
+        setShowConfetti(false)
+        setIsPracticeMode(true)
+
+        // Generate new practice sequence immediately
+        const practiceSequence = getRandomPracticeSequence()
+        setCurrentWordSequence(practiceSequence)
+        setCurrentWordIndex(0)
+        setAttemptsPerWord(Array(practiceSequence.length - 1).fill(0))
+
+        if (practiceSequence.length > 1 && practiceSequence[1]) {
+            const initialUserInput = Array(
+                practiceSequence[1].length > 0
+                    ? practiceSequence[1].length - 1
+                    : 0
+            ).fill('')
+            setUserInput(initialUserInput)
+        } else {
+            setUserInput([])
+        }
+
+        setTimeout(() => document.getElementById('input-0')?.focus(), 0)
+    }, [])
 
     const handleVirtualKeyPress = useCallback(
         (key: string) => {
@@ -452,9 +560,22 @@ export default function WordAssociationGame() {
         return <div>Loading game...</div>
     }
 
+    const totalAttempts = attemptsPerWord.reduce(
+        (sum, attempts) => sum + attempts,
+        0
+    )
+
     return (
         <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-zinc-900 p-4 text-white'>
             {showConfetti && <ConfettiEffect />}
+            <StatsPopup
+                isOpen={showStatsPopup && !isPracticeMode}
+                onClose={() => setShowStatsPopup(false)}
+                attemptsPerWord={attemptsPerWord}
+                totalAttempts={totalAttempts}
+                currentWordSequence={currentWordSequence}
+                onPracticeMode={handlePracticeMode}
+            />
             <style jsx global>{`
                 @keyframes shake {
                     0%,
@@ -490,9 +611,14 @@ export default function WordAssociationGame() {
             <div className='mb-4 text-center'>
                 <h1 className='mb-4 text-4xl font-bold'>
                     Word Association Unlimited
+                    {isPracticeMode && (
+                        <span className='text-blue-400'> - Practice Mode</span>
+                    )}
                 </h1>
                 <p className='text-sm text-zinc-400'>
-                    Shout out to my discord friends
+                    {isPracticeMode
+                        ? 'Practice with random sentences from past days'
+                        : 'Shout out to my discord friends'}
                 </p>
             </div>
 
@@ -562,29 +688,35 @@ export default function WordAssociationGame() {
                 ))}
             </div>
 
-            {feedback && (
-                <p
-                    className={`z-10 mb-4 text-xl ${feedback.includes('completed') ? 'text-green-600' : 'text-red-400'}`}
-                >
-                    {feedback}
-                </p>
-            )}
-
             <VirtualKeyboard
                 onKeyPress={handleVirtualKeyPress}
                 onEnterPress={handleVirtualEnterPress}
                 onBackspacePress={handleVirtualBackspacePress}
             />
 
-            {currentWordIndex >= currentWordSequence.length - 1 &&
-                currentWordSequence.length > 0 && (
-                    <button
-                        onClick={initializeGame}
-                        className='z-10 mt-8 rounded bg-green-500 px-8 py-3 text-lg font-semibold text-white hover:bg-green-400 focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:outline-none'
-                    >
-                        Play Again
-                    </button>
-                )}
+            {isPracticeMode && (
+                <div className='z-10 mt-6 flex flex-col items-center gap-3'>
+                    <div className='flex gap-3'>
+                        <button
+                            onClick={() => {
+                                initializeGame()
+                            }}
+                            className='rounded bg-blue-600 px-6 py-3 text-lg font-semibold text-white hover:bg-blue-500 focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:outline-none'
+                        >
+                            New Practice
+                        </button>
+                        <button
+                            onClick={() => {
+                                setIsPracticeMode(false)
+                                initializeGame()
+                            }}
+                            className='rounded bg-zinc-600 px-6 py-3 text-lg font-semibold text-white hover:bg-zinc-500 focus:ring-2 focus:ring-zinc-400 focus:ring-offset-2 focus:ring-offset-zinc-900 focus:outline-none'
+                        >
+                            Back to Daily
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

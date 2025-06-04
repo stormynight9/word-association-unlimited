@@ -17,6 +17,50 @@ function getDailySequence(): string[] {
     return WORDLIST[index]
 }
 
+// Get today's date string for comparison
+function getTodayDateString(): string {
+    const today = new Date()
+    return (
+        today.getFullYear() +
+        '-' +
+        String(today.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(today.getDate()).padStart(2, '0')
+    )
+}
+
+// Save game state to localStorage
+function saveGameState(state: {
+    currentWordSequence: string[]
+    currentWordIndex: number
+    userInput: string[]
+    date: string
+}) {
+    try {
+        localStorage.setItem('wordAssociationGame', JSON.stringify(state))
+    } catch (error) {
+        console.warn('Failed to save game state to localStorage:', error)
+    }
+}
+
+// Load game state from localStorage
+function loadGameState(): {
+    currentWordSequence: string[]
+    currentWordIndex: number
+    userInput: string[]
+    date: string
+} | null {
+    try {
+        const saved = localStorage.getItem('wordAssociationGame')
+        if (saved) {
+            return JSON.parse(saved)
+        }
+    } catch (error) {
+        console.warn('Failed to load game state from localStorage:', error)
+    }
+    return null
+}
+
 const RevealedLetterTile = ({ letter }: { letter: string }) => (
     <div className='flex h-14 w-14 items-center justify-center rounded bg-green-600 text-3xl font-bold text-white sm:h-16 sm:w-16'>
         {letter}
@@ -234,19 +278,33 @@ export default function WordAssociationGame() {
             if (newCurrentWordIndex < currentWordSequence.length - 1) {
                 const nextWordToSetUp =
                     currentWordSequence[newCurrentWordIndex + 1]
-                setUserInput(
-                    Array(
-                        nextWordToSetUp.length > 0
-                            ? nextWordToSetUp.length - 1
-                            : 0
-                    ).fill('')
-                )
+                const newUserInput = Array(
+                    nextWordToSetUp.length > 0 ? nextWordToSetUp.length - 1 : 0
+                ).fill('')
+                setUserInput(newUserInput)
+
+                // Save progress to localStorage
+                saveGameState({
+                    currentWordSequence,
+                    currentWordIndex: newCurrentWordIndex,
+                    userInput: newUserInput,
+                    date: getTodayDateString(),
+                })
+
                 setTimeout(() => document.getElementById('input-0')?.focus(), 0)
             } else {
                 setUserInput([])
                 setFeedback("You've completed all words! Great job Jared! 🎉")
                 setShowConfetti(true)
                 setTimeout(() => setShowConfetti(false), 4000)
+
+                // Save completed state
+                saveGameState({
+                    currentWordSequence,
+                    currentWordIndex: newCurrentWordIndex,
+                    userInput: [],
+                    date: getTodayDateString(),
+                })
             }
         } else {
             setIsShaking(true)
@@ -261,20 +319,56 @@ export default function WordAssociationGame() {
     }, [currentWordIndex, currentWordSequence, userInput])
 
     const initializeGame = useCallback(() => {
-        const newSequence = getDailySequence()
-        setCurrentWordSequence(newSequence)
-        setCurrentWordIndex(0)
-        setFeedback('')
-        setIsShaking(false)
-        setShowConfetti(false)
-        if (newSequence.length > 1 && newSequence[1]) {
-            setUserInput(
-                Array(
+        const todayDate = getTodayDateString()
+        const savedState = loadGameState()
+
+        // Check if we have a saved state for today's date
+        if (savedState && savedState.date === todayDate) {
+            // Restore saved state
+            setCurrentWordSequence(savedState.currentWordSequence)
+            setCurrentWordIndex(savedState.currentWordIndex)
+            setUserInput(savedState.userInput)
+            const isCompleted =
+                savedState.currentWordIndex >=
+                savedState.currentWordSequence.length - 1
+            setFeedback(
+                isCompleted
+                    ? "You've completed all words! Great job Jared! 🎉"
+                    : ''
+            )
+            setIsShaking(false)
+
+            // Show confetti if game was already completed
+            if (isCompleted) {
+                setShowConfetti(true)
+                setTimeout(() => setShowConfetti(false), 4000)
+            } else {
+                setShowConfetti(false)
+            }
+        } else {
+            // Start fresh game for today
+            const newSequence = getDailySequence()
+            setCurrentWordSequence(newSequence)
+            setCurrentWordIndex(0)
+            setFeedback('')
+            setIsShaking(false)
+            setShowConfetti(false)
+            if (newSequence.length > 1 && newSequence[1]) {
+                const initialUserInput = Array(
                     newSequence[1].length > 0 ? newSequence[1].length - 1 : 0
                 ).fill('')
-            )
-        } else {
-            setUserInput([])
+                setUserInput(initialUserInput)
+
+                // Save initial state
+                saveGameState({
+                    currentWordSequence: newSequence,
+                    currentWordIndex: 0,
+                    userInput: initialUserInput,
+                    date: todayDate,
+                })
+            } else {
+                setUserInput([])
+            }
         }
         setTimeout(() => document.getElementById('input-0')?.focus(), 0)
     }, [])

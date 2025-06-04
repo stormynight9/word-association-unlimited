@@ -66,7 +66,7 @@ const StatsPopup = ({
 
                 <div className='mb-6 text-center'>
                     <p className='text-lg font-semibold text-green-400'>
-                        You've completed all words! Great job Jared! 🎉
+                        You&apos;ve completed all words! Great job Jared! 🎉
                     </p>
                 </div>
 

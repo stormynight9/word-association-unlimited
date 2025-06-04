@@ -262,7 +262,6 @@ export default function WordAssociationGame() {
     const [showConfetti, setShowConfetti] = useState(false)
     const [showStatsPopup, setShowStatsPopup] = useState(false)
     const [isPracticeMode, setIsPracticeMode] = useState(false)
-    const [dailyCompleted, setDailyCompleted] = useState(false)
 
     const handleInputChange = useCallback(
         (index: number, value: string) => {
@@ -340,7 +339,6 @@ export default function WordAssociationGame() {
                         setShowConfetti(false)
                     }, 3000)
                 } else {
-                    setDailyCompleted(true)
                     setShowConfetti(true)
                     setTimeout(() => {
                         setShowStatsPopup(true)
@@ -414,7 +412,6 @@ export default function WordAssociationGame() {
                 savedState.currentWordIndex >=
                 savedState.currentWordSequence.length - 1
 
-            setDailyCompleted(isCompleted)
             setIsShaking(false)
 
             // Show confetti if game was already completed
@@ -432,7 +429,6 @@ export default function WordAssociationGame() {
             setCurrentWordSequence(newSequence)
             setCurrentWordIndex(0)
             setAttemptsPerWord(Array(newSequence.length - 1).fill(0))
-            setDailyCompleted(false)
             setIsShaking(false)
             setShowConfetti(false)
             if (newSequence.length > 1 && newSequence[1]) {
